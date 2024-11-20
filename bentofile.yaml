@@ -1,0 +1,13 @@
+service: "service.py:FasterWhisper"
+labels:
+  owner: yanick-schraner
+  project: gallery
+include:
+  - "*.py"
+python:
+  requirements_txt: requirements.txt
+docker:
+  python_version: "3.12"
+  system_packages:
+    - ffmpeg
+    - git

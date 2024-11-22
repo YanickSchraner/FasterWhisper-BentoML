@@ -6,12 +6,19 @@ from core import Segment, Transcription, Word, segments_to_srt, segments_to_text
 
 from faster_whisper.transcribe import TranscriptionInfo
 
+
+# https://github.com/openai/openai-openapi/blob/master/openapi.yaml#L10909
+TimestampGranularities = list[Literal["segment", "word"]]
+DEFAULT_TIMESTAMP_GRANULARITIES: TimestampGranularities = ["segment"]
+
+
 class ResponseFormat(enum.StrEnum):
     TEXT = "text"
     JSON = "json"
     VERBOSE_JSON = "verbose_json"
     SRT = "srt"
     VTT = "vtt"
+
 
 class Language(enum.StrEnum):
     AF = "af"
@@ -121,10 +128,6 @@ class Task(enum.StrEnum):
     TRANSLATE = "translate"
 
 
-
-
-
-
 class ModelObject(BaseModel):
     id: str
     """The model identifier, which can be referenced in the API endpoints."""
@@ -164,11 +167,10 @@ class ModelObject(BaseModel):
     )
 
 
-
-
 class ModelListResponse(BaseModel):
     data: list[ModelObject]
     object: Literal["list"] = "list"
+
 
 def segments_to_response(
     segments: Iterable[Segment],
@@ -187,8 +189,10 @@ def segments_to_response(
     elif response_format == ResponseFormat.SRT:
         return "".join(segments_to_srt(segment, i) for i, segment in enumerate(segments))
 
+
 def format_as_sse(data: str) -> str:
     return f"data: {data}\n\n"
+
 
 def segments_to_streaming_response(
     segments: Iterable[Segment],
@@ -207,6 +211,8 @@ def segments_to_streaming_response(
                 data = segments_to_vtt(segment, i)
             elif response_format == ResponseFormat.SRT:
                 data = segments_to_srt(segment, i)
+            else:
+                continue
             yield format_as_sse(data)
 
     return segment_responses()

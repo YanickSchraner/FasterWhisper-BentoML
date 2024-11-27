@@ -7,9 +7,13 @@ from core import Segment, Transcription, Word, segments_to_srt, segments_to_text
 from faster_whisper.transcribe import TranscriptionInfo
 
 
+class TimestampGranularity(enum.StrEnum):
+    SEGMENT = "segment"
+    WORD = "word"
+
+
 # https://github.com/openai/openai-openapi/blob/master/openapi.yaml#L10909
-TimestampGranularities = list[Literal["segment", "word"]]
-DEFAULT_TIMESTAMP_GRANULARITIES: TimestampGranularities = ["segment"]
+DEFAULT_TIMESTAMP_GRANULARITIES: [TimestampGranularity] = [TimestampGranularity.SEGMENT]
 
 
 class ResponseFormat(enum.StrEnum):
@@ -212,7 +216,7 @@ def segments_to_streaming_response(
             elif response_format == ResponseFormat.SRT:
                 data = segments_to_srt(segment, i)
             else:
-                continue
+                raise ValueError(f"Unknown response format: {response_format}")
             yield format_as_sse(data)
 
     return segment_responses()

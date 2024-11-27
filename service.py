@@ -1,3 +1,4 @@
+from array import array
 import logging
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, List, Optional, Union
 
@@ -15,7 +16,7 @@ from utils import (
     ModelObject,
     ResponseFormat,
     segments_to_response,
-    segments_to_streaming_response, TimestampGranularities, DEFAULT_TIMESTAMP_GRANULARITIES,
+    segments_to_streaming_response, DEFAULT_TIMESTAMP_GRANULARITIES, TimestampGranularity,
 )
 from fastapi import FastAPI
 
@@ -62,35 +63,6 @@ class FasterWhisper:
         self.batch_size = 16
         self.model_manager = WhisperModelManager(WhisperConfig())
 
-    @bentoml.api(route="/stream/transcribe")
-    async def streaming_transcribe(
-            self,
-            file: Annotated[Path, ContentType("audio/mpeg")],
-            model: Optional[ModelName] = Field(
-                default=None, description="Whisper model to load"
-            ),
-            language: Optional[Language] = Field(
-                default=None,
-                description='The language spoken in the audio. It should be a language code such as "en" or "fr". If not set, the language will be detected in the first 30 seconds of audio.',
-            ),
-            prompt: Optional[float] = Field(
-                default=None,
-                description="Optional text string or iterable of token ids to provide as a prompt for the first window.",
-            ),
-            response_format: Optional[ResponseFormat] = Field(
-                default=None,
-                description=f"One of: {[format.name for format in ResponseFormat]}",
-            ),
-            temperature: Union[List[float], float] = Field(
-                default=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                description="Temperature values as a list or single float",
-            ),
-    ) -> AsyncGenerator[str, None]:
-        segments, info = self.model.transcribe(file, batch_size=self.batch_size)
-
-        async for segment in segments:
-            yield segment.text
-
     @bentoml.api(route="/v1/audio/transcriptions")
     def transcribe(
             self,
@@ -100,7 +72,8 @@ class FasterWhisper:
             ),
             language: Optional[Language] = Field(
                 default=None,
-                description='The language spoken in the audio. It should be a language code such as "en" or "fr". If not set, the language will be detected in the first 30 seconds of audio.',
+                description='The language spoken in the audio. It should be a language code such as "en" or "fr". If '
+                            'not set, the language will be detected in the first 30 seconds of audio.',
             ),
             prompt: Optional[float] = Field(
                 default=None,
@@ -110,15 +83,16 @@ class FasterWhisper:
                 default=ResponseFormat.JSON,
                 description=f"One of: {[format for format in ResponseFormat]}",
             ),
-            temperature: Optional[float] = Field(
+            temperature: Optional[Union[float, List[float]]] = Field(
                 default=0.0,
                 description="Temperature value as a float",
             ),
-            timestamp_granularities: Optional[list[TimestampGranularities]] = Field(
+            timestamp_granularities: Optional[List[TimestampGranularity]] = Field(
                 default=DEFAULT_TIMESTAMP_GRANULARITIES,
-                description="The timestamp granularities to populate for this transcription. response_format must be set verbose_json to use timestamp granularities."
-            ),
-            stream: bool = Field(default=False, description="Use streaming mode"),
+                alias="timestamp_granularities[]",
+                description="The timestamp granularities to populate for this transcription. response_format must be "
+                            "set verbose_json to use timestamp granularities."
+            )
     ) -> (
             Annotated[str, bentoml.validators.ContentType("text/plain")]
             | Annotated[str, bentoml.validators.ContentType("application/json")]
@@ -127,10 +101,16 @@ class FasterWhisper:
     ):
         if timestamp_granularities != DEFAULT_TIMESTAMP_GRANULARITIES and response_format != ResponseFormat.VERBOSE_JSON:
             logger.warning(
-                "It only makes sense to provide `timestamp_granularities[]` when `response_format` is set to `verbose_json`. See https://platform.openai.com/docs/api-reference/audio/createTranscription#audio-createtranscription-timestamp_granularities."
+                "It only makes sense to provide `timestamp_granularities[]` when `response_format` is set to "
+                "`verbose_json`. See https://platform.openai.com/docs/api-reference/audio/createTranscription#audio"
+                "-createtranscription-timestamp_granularities."
                 # noqa: E501
             )
-        logger.info("endpoint transcribe called.")
+
+        if TimestampGranularity.WORD not in timestamp_granularities and response_format == ResponseFormat.VERBOSE_JSON:
+            raise ValueError(f"timestamp_granularities must contain {TimestampGranularity.WORD} when response_format "
+                             f"is set to {ResponseFormat.VERBOSE_JSON}")
+
         with self.model_manager.load_model(model) as whisper:
             segments, transcription_info = whisper.transcribe(
                 file,
@@ -140,13 +120,108 @@ class FasterWhisper:
                 word_timestamps="word" in timestamp_granularities,
             )
         segments = Segment.from_faster_whisper_segments(segments)
-        if stream:
-            return segments_to_streaming_response(
-                segments, transcription_info, response_format
+        return segments_to_response(segments, transcription_info, response_format)
+
+    @bentoml.api(route="/v1/audio/transcriptions/stream")
+    async def streaming_transcribe(
+            self,
+            file: Annotated[Path, ContentType("audio/mpeg")],
+            model: Optional[ModelName] = Field(
+                default="large-v3", description="Whisper model to load"
+            ),
+            language: Optional[Language] = Field(
+                default=None,
+                description='The language spoken in the audio. It should be a language code such as "en" or "fr". If '
+                            'not set, the language will be detected in the first 30 seconds of audio.',
+            ),
+            prompt: Optional[float] = Field(
+                default=None,
+                description="Optional text string or iterable of token ids to provide as a prompt for the first window.",
+            ),
+            response_format: Optional[ResponseFormat] = Field(
+                default=ResponseFormat.JSON,
+                description=f"One of: {[format for format in ResponseFormat]}",
+            ),
+            temperature: Optional[Union[float, List[float]]] = Field(
+                default=0.0,
+                description="Temperature value as a float",
+            ),
+            timestamp_granularities: Optional[List[TimestampGranularity]] = Field(
+                default=DEFAULT_TIMESTAMP_GRANULARITIES,
+                alias="timestamp_granularities[]",
+                description="The timestamp granularities to populate for this transcription. response_format must be "
+                            "set verbose_json to use timestamp granularities."
             )
-        else:
-            result = segments_to_response(segments, transcription_info, response_format)
-            return result
+    ) -> AsyncGenerator[str, None]:
+
+        if timestamp_granularities != DEFAULT_TIMESTAMP_GRANULARITIES and response_format != ResponseFormat.VERBOSE_JSON:
+            logger.warning(
+                "It only makes sense to provide `timestamp_granularities[]` when `response_format` is set to "
+                "`verbose_json`. See https://platform.openai.com/docs/api-reference/audio/createTranscription#audio"
+                "-createtranscription-timestamp_granularities."
+                # noqa: E501
+            )
+
+        if TimestampGranularity.WORD not in timestamp_granularities and response_format == ResponseFormat.VERBOSE_JSON:
+            raise ValueError(f"timestamp_granularities must contain {TimestampGranularity.WORD} when response_format "
+                             f"is set to {ResponseFormat.VERBOSE_JSON}")
+
+        with self.model_manager.load_model(model) as whisper:
+            segments, transcription_info = whisper.transcribe(
+                file,
+                initial_prompt=prompt,
+                language=language,
+                temperature=temperature,
+                word_timestamps="word" in timestamp_granularities,
+            )
+        generator = segments_to_streaming_response(
+            segments, transcription_info, response_format
+        )
+
+        for chunk in generator:
+            yield chunk
+
+        # for segment in segments:
+        #     yield segment.text
+        # segments = Segment.from_faster_whisper_segments(segments)
+
+        #     segments, info = self.model.transcribe(file, batch_size=self.batch_size)
+        #
+        #     async for segment in segments:
+        #         yield segment.text
+
+        # return segments_to_streaming_response(
+        #     segments, transcription_info, response_format
+        # )
+
+    # @bentoml.api(route="/stream/transcribe")
+    # async def streaming_transcribe(
+    #         self,
+    #         file: Annotated[Path, ContentType("audio/mpeg")],
+    #         model: Optional[ModelName] = Field(
+    #             default=None, description="Whisper model to load"
+    #         ),
+    #         language: Optional[Language] = Field(
+    #             default=None,
+    #             description='The language spoken in the audio. It should be a language code such as "en" or "fr". If not set, the language will be detected in the first 30 seconds of audio.',
+    #         ),
+    #         prompt: Optional[float] = Field(
+    #             default=None,
+    #             description="Optional text string or iterable of token ids to provide as a prompt for the first window.",
+    #         ),
+    #         response_format: Optional[ResponseFormat] = Field(
+    #             default=None,
+    #             description=f"One of: {[format.name for format in ResponseFormat]}",
+    #         ),
+    #         temperature: Union[List[float], float] = Field(
+    #             default=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+    #             description="Temperature values as a list or single float",
+    #         ),
+    # ) -> AsyncGenerator[str, None]:
+    #     segments, info = self.model.transcribe(file, batch_size=self.batch_size)
+    #
+    #     async for segment in segments:
+    #         yield segment.text
 
     @fastapi.get("/v1/models")
     def get_models(self) -> ModelListResponse:
@@ -181,10 +256,10 @@ class FasterWhisper:
     @fastapi.get("/v1/models/{model_name:path}")
     # NOTE: `examples` doesn't work https://github.com/tiangolo/fastapi/discussions/10537
     def get_model(self,
-            model_name: Annotated[
-                str, Path(example="Systran/faster-distil-whisper-large-v3")
-            ],
-    ) -> ModelObject:
+                  model_name: Annotated[
+                      str, Path(example="Systran/faster-distil-whisper-large-v3")
+                  ],
+                  ) -> ModelObject:
         models = huggingface_hub.list_models(
             model_name=model_name,
             library="ctranslate2",

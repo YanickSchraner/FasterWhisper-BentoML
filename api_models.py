@@ -1,10 +1,16 @@
 import enum
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Generator, Iterable, Literal
+import logging
+from typing import Iterable, Generator
+from typing import Literal
 
-from core import Segment, Transcription, Word, segments_to_srt, segments_to_text, segments_to_vtt
-
+from bentoml.exceptions import InvalidArgument
 from faster_whisper.transcribe import TranscriptionInfo
+from pydantic import BaseModel
+from pydantic import ConfigDict, Field
+
+from core import Segment, segments_to_text, segments_to_vtt, segments_to_srt, Transcription, Word
+
+logger = logging.getLogger(__name__)
 
 
 class TimestampGranularity(enum.StrEnum):
@@ -127,11 +133,6 @@ class Language(enum.StrEnum):
     ZH = "zh"
 
 
-class Task(enum.StrEnum):
-    TRANSCRIBE = "transcribe"
-    TRANSLATE = "translate"
-
-
 class ModelObject(BaseModel):
     id: str
     """The model identifier, which can be referenced in the API endpoints."""
@@ -177,9 +178,9 @@ class ModelListResponse(BaseModel):
 
 
 def segments_to_response(
-    segments: Iterable[Segment],
-    transcription_info: TranscriptionInfo,
-    response_format: ResponseFormat,
+        segments: Iterable[Segment],
+        transcription_info: TranscriptionInfo,
+        response_format: ResponseFormat,
 ):
     segments = list(segments)
     if response_format == ResponseFormat.TEXT:  # noqa: RET503
@@ -199,9 +200,9 @@ def format_as_sse(data: str) -> str:
 
 
 def segments_to_streaming_response(
-    segments: Iterable[Segment],
-    transcription_info: TranscriptionInfo,
-    response_format: ResponseFormat,
+        segments: Iterable[Segment],
+        transcription_info: TranscriptionInfo,
+        response_format: ResponseFormat,
 ):
     def segment_responses() -> Generator[str, None, None]:
         for i, segment in enumerate(segments):
@@ -256,7 +257,7 @@ class TranscriptionVerboseJsonResponse(BaseModel):
 
     @classmethod
     def from_segments(
-        cls, segments: list[Segment], transcription_info: TranscriptionInfo
+            cls, segments: list[Segment], transcription_info: TranscriptionInfo
     ):
         return cls(
             language=transcription_info.language,
@@ -274,4 +275,26 @@ class TranscriptionVerboseJsonResponse(BaseModel):
             text=transcription.text,
             words=transcription.words,
             segments=[],  # FIX: hardcoded
+        )
+
+
+def validate_timestamp_granularities(response_format, timestamp_granularities):
+    if (
+            timestamp_granularities != DEFAULT_TIMESTAMP_GRANULARITIES
+            and response_format != ResponseFormat.VERBOSE_JSON
+    ):
+        logger.warning(
+            "It only makes sense to provide `timestamp_granularities[]` when `response_format` is set to "
+            "`verbose_json`. See https://platform.openai.com/docs/api-reference/audio/createTranscription#audio"
+            "-createtranscription-timestamp_granularities."
+            # noqa: E501
+        )
+
+    if (
+            TimestampGranularity.WORD not in timestamp_granularities
+            and response_format == ResponseFormat.VERBOSE_JSON
+    ):
+        raise InvalidArgument(
+            f"timestamp_granularities must contain {TimestampGranularity.WORD} when response_format "
+            f"is set to {ResponseFormat.VERBOSE_JSON}"
         )

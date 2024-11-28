@@ -6,7 +6,8 @@ from faster_whisper import WhisperModel
 
 from config import WhisperConfig
 from model_manager import WhisperModelManager
-from utils import ResponseFormat, segments_to_response
+from api_models import ResponseFormat
+from api_models import segments_to_response
 
 
 class TestFasterWhisperBug:

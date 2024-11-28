@@ -1,11 +1,11 @@
 import json
-import asyncio
-from pathlib import Path
-
 import pytest
 
+from pathlib import Path
+
 from service import FasterWhisper
-from utils import ResponseFormat, TimestampGranularity
+from api_models import ResponseFormat, TimestampGranularity
+from bentoml.exceptions import InvalidArgument
 
 
 class TestFasterWhisper:
@@ -66,8 +66,8 @@ class TestFasterWhisper:
         response_format = ResponseFormat.VERBOSE_JSON
         timestamp_granularities = [TimestampGranularity.SEGMENT]
 
-        # when
-        with pytest.raises(ValueError):
+        # when/then
+        with pytest.raises(InvalidArgument):
             faster_whisper_service.transcribe(file,
                                               response_format=response_format,
                                               timestamp_granularities=timestamp_granularities)

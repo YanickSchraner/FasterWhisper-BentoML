@@ -16,7 +16,7 @@ class TestFasterWhisperBug:
     def test_transcribe_compare_with_faster_whisper(self):
         # given
         model_name = "large-v3"
-        audio_file_name = "assets/RecordedAudio.wav"
+        audio_file_name = "../assets/RecordedAudio.wav"
 
         model = WhisperModel(model_name)
         model_manager = WhisperModelManager(WhisperConfig())

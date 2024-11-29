@@ -1,4 +1,6 @@
 import json
+
+import ctranslate2
 import pytest
 
 from pathlib import Path
@@ -13,7 +15,7 @@ class TestFasterWhisper:
     def test_transcribe_standard_case(self):
         # given
         faster_whisper_service = FasterWhisper()
-        file = Path("assets/example_audio.mp3")
+        file = Path("../assets/example_audio.mp3")
 
         # when
         transcription = faster_whisper_service.transcribe(file, response_format=ResponseFormat.JSON)
@@ -29,7 +31,7 @@ class TestFasterWhisper:
     def test_transcribe_temperature(self, temperature):
         # given
         faster_whisper_service = FasterWhisper()
-        file = Path("assets/example_audio.mp3")
+        file = Path("../assets/example_audio.mp3")
 
         # when
         transcription = faster_whisper_service.transcribe(file,
@@ -49,7 +51,7 @@ class TestFasterWhisper:
     def test_transcribe_response_format(self, response_format, timestamp_granularities):
         # given
         faster_whisper_service = FasterWhisper()
-        file = Path("assets/example_audio.mp3")
+        file = Path("../assets/example_audio.mp3")
 
         # when
         transcription = faster_whisper_service.transcribe(file,
@@ -62,7 +64,7 @@ class TestFasterWhisper:
     def test_response_format_verbose_timestamp_granularities_segment(self):
         # given
         faster_whisper_service = FasterWhisper()
-        file = Path("assets/example_audio.mp3")
+        file = Path("../assets/example_audio.mp3")
         response_format = ResponseFormat.VERBOSE_JSON
         timestamp_granularities = [TimestampGranularity.SEGMENT]
 
@@ -75,7 +77,7 @@ class TestFasterWhisper:
     def test_response_format_verbose_timestamp_granularities_word(self):
         # given
         faster_whisper_service = FasterWhisper()
-        file = Path("assets/example_audio.mp3")
+        file = Path("../assets/example_audio.mp3")
         response_format = ResponseFormat.VERBOSE_JSON
         timestamp_granularities = [TimestampGranularity.WORD]
 
@@ -91,7 +93,7 @@ class TestFasterWhisper:
     async def test_transcribe_streaming(self):
         # given
         faster_whisper_service = FasterWhisper()
-        file = Path("assets/example_audio.mp3")
+        file = Path("../assets/example_audio.mp3")
         chunks = []
 
         # when
@@ -100,3 +102,14 @@ class TestFasterWhisper:
 
         # then
         assert chunks is not None
+
+    def test_transcribe_task(self):
+        # given
+        faster_whisper_service = FasterWhisper()
+        file = Path("../assets/example_audio.mp3")
+
+        # when
+        transcription = faster_whisper_service.task_transcribe(file, response_format=ResponseFormat.JSON)
+
+        # then
+        assert transcription is not None

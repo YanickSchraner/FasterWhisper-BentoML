@@ -1,6 +1,7 @@
 import enum
 import logging
-from typing import Iterable, Generator
+from pathlib import Path
+from typing import Iterable, Generator, Annotated, Optional, Union, List
 from typing import Literal
 
 from bentoml.exceptions import InvalidArgument
@@ -177,6 +178,18 @@ class ModelListResponse(BaseModel):
     object: Literal["list"] = "list"
 
 
+ModelName = Annotated[
+    str,
+    Field(
+        description="The ID of the model. You can get a list of available models by calling `/v1/models`.",
+        examples=[
+            "Systran/faster-distil-whisper-large-v3",
+            "bofenghuang/whisper-large-v2-cv11-french-ct2",
+        ],
+    ),
+]
+
+
 def segments_to_response(
         segments: Iterable[Segment],
         transcription_info: TranscriptionInfo,
@@ -298,3 +311,13 @@ def validate_timestamp_granularities(response_format, timestamp_granularities):
             f"timestamp_granularities must contain {TimestampGranularity.WORD} when response_format "
             f"is set to {ResponseFormat.VERBOSE_JSON}"
         )
+
+
+class BatchTranscriptionRequest(BaseModel):
+    file: Path
+    model: Optional[str]
+    language: Optional[str]
+    prompt: Optional[str]
+    response_format: Optional[ResponseFormat]
+    temperature: Optional[Union[float, List[float]]]
+    timestamp_granularities: Optional[List[TimestampGranularity]]

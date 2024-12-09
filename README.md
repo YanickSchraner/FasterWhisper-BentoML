@@ -51,3 +51,34 @@ with bentoml.SyncHTTPClient('http://localhost:3000') as client:
 ## Deploy
 
 For custom deployment in your own infrastructure, use [BentoML to generate an OCI-compliant image](https://docs.bentoml.com/en/latest/guides/containerization.html).
+
+
+## Observability
+
+BentoML automatically collects a set of default metrics for each Service and exposes them via '/metrics' endpoint.
+
+### Prometheus (local)
+
+To run a prometheus server locally, you need to do the following:
+- Install prometheus
+- Start prometheus server
+```bash
+prometheus --config.file=/path/to/the/file/prometheus.yml
+```
+- Access the web UI by visiting `http://localhost:9090`
+
+### Grafana
+
+Tutorial link: [link](https://docs.bentoml.com/en/latest/build-with-bentoml/observability/metrics.html#create-a-grafana-dashboard)
+- Install grafana
+- Change http_port to a free port like 4000 in file grafana.ini.
+- Restart grafana server
+
+### Local Development
+
+To debug through the FasterWhisper service, you can run the service with the following script: 
+```bash
+python launch.py
+```
+
+

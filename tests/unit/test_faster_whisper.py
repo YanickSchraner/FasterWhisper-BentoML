@@ -1,16 +1,14 @@
 import json
-
-import ctranslate2
-import pytest
-
 from pathlib import Path
 
-from service import FasterWhisper
+import pytest
+from bentoml.exceptions import InvalidArgument, NotFound
+
 from api_models import ResponseFormat, TimestampGranularity
-from bentoml.exceptions import InvalidArgument
+from service import FasterWhisper
 
 
-class TestFasterWhisper:
+class TestFasterWhisperTranscribe:
 
     def test_transcribe_standard_case(self):
         # given
@@ -113,3 +111,39 @@ class TestFasterWhisper:
 
         # then
         assert transcription is not None
+
+
+class TestFasterWhisperTranslate:
+
+    def test_translate_standard_case(self):
+        # given
+        faster_whisper_service = FasterWhisper()
+        file = Path("../assets/example_audio_german.mp3")
+
+        # when
+        transcription = faster_whisper_service.translate(file, response_format=ResponseFormat.JSON)
+
+        # then
+        assert transcription is not None
+
+
+class TestFasterWhisperModels:
+
+    def test_get_models_standard_case(self):
+        # given
+        faster_whisper_service = FasterWhisper()
+
+        # when
+        models = faster_whisper_service.get_models()
+
+        # then
+        assert models is not None
+
+    def test_model_not_found(self):
+        # given
+        unknown_model_name = "unknown-model-v1"
+        faster_whisper_service = FasterWhisper()
+
+        # when / then
+        with pytest.raises(NotFound):
+            faster_whisper_service.get_model(unknown_model_name)

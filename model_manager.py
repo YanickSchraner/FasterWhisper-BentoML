@@ -12,7 +12,7 @@ from faster_whisper import WhisperModel
 
 from collections.abc import Callable
 
-from config import WhisperConfig
+from config import WhisperModelConfig
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +108,8 @@ class SelfDisposingModel[T]:
 
 
 class WhisperModelManager:
-    def __init__(self, whisper_config: WhisperConfig) -> None:
-        self.whisper_config: WhisperConfig = whisper_config
+    def __init__(self, whisper_config: WhisperModelConfig) -> None:
+        self.whisper_config: WhisperModelConfig = whisper_config
         self.loaded_models: OrderedDict[str, SelfDisposingModel[WhisperModel]] = (
             OrderedDict()
         )

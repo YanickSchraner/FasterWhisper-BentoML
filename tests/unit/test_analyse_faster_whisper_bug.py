@@ -4,10 +4,10 @@ from pathlib import Path
 
 from faster_whisper import WhisperModel
 
-from config import WhisperConfig
+from config import WhisperModelConfig
 from model_manager import WhisperModelManager
-from api_models import ResponseFormat
-from api_models import segments_to_response
+from api_models.enums import ResponseFormat
+from api_models.output_models import segments_to_response
 
 
 class TestFasterWhisperBug:
@@ -19,7 +19,7 @@ class TestFasterWhisperBug:
         audio_file_name = "../assets/RecordedAudio.wav"
 
         model = WhisperModel(model_name)
-        model_manager = WhisperModelManager(WhisperConfig())
+        model_manager = WhisperModelManager(WhisperModelConfig())
 
         # when
         segments_package, transcription_info_package = model.transcribe(audio_file_name)

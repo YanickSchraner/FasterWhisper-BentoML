@@ -1,7 +1,10 @@
 import enum
+from typing import List
 
 import torch
 from pydantic import BaseModel, Field
+
+from api_models.enums import TimestampGranularity, ResponseFormat
 
 
 class Device(enum.StrEnum):
@@ -22,17 +25,9 @@ class Quantization(enum.StrEnum):
     DEFAULT = "default"
 
 
-class WhisperConfig(BaseModel):
+class WhisperModelConfig(BaseModel):
     """See https://github.com/SYSTRAN/faster-whisper/blob/master/faster_whisper/transcribe.py#L599."""
 
-    model: str = Field(default="Systran/faster-whisper-small")
-    """
-    Default Huggingface model to use for transcription. Note, the model must support being ran using CTranslate2.
-    This model will be used if no model is specified in the request.
-
-    Models created by authors of `faster-whisper` can be found at https://huggingface.co/Systran
-    You can find other supported models at https://huggingface.co/models?p=2&sort=trending&search=ctranslate2 and https://huggingface.co/models?sort=trending&search=ct2
-    """
     inference_device: Device = Device.CUDA if torch.cuda.is_available() else Device.AUTO
     device_index: int | list[int] = 0
     compute_type: Quantization = Quantization.FLOAT16 if torch.cuda.is_available() else Quantization.DEFAULT
@@ -44,3 +39,15 @@ class WhisperConfig(BaseModel):
     -1: Never unload the model.
     0: Unload the model immediately after usage.
     """
+
+
+class FasterWhisperConfig(BaseModel):
+    default_model_name: str = "large-v3"
+    default_prompt: str = None
+    default_language: str = None
+    default_response_format: ResponseFormat = ResponseFormat.JSON
+    default_temperature: float = 0.0
+    default_timestamp_granularities: List[TimestampGranularity] = [TimestampGranularity.SEGMENT]
+
+
+faster_whisper_config = FasterWhisperConfig()

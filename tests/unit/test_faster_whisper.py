@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from bentoml.exceptions import InvalidArgument, NotFound
 
-from api_models import ResponseFormat, TimestampGranularity
+from api_models.enums import TimestampGranularity, ResponseFormat
 from service import FasterWhisper
 
 

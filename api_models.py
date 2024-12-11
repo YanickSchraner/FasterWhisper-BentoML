@@ -6,12 +6,24 @@ from typing import Literal
 
 from bentoml.exceptions import InvalidArgument
 from faster_whisper.transcribe import TranscriptionInfo
-from pydantic import BaseModel
+from huggingface_hub import ModelInfo
+from pydantic import BaseModel, BeforeValidator
 from pydantic import ConfigDict, Field
 
 from core import Segment, segments_to_text, segments_to_vtt, segments_to_srt, Transcription, Word
 
 logger = logging.getLogger(__name__)
+
+ModelName = Annotated[
+    str,
+    Field(
+        description="The ID of the model. You can get a list of available models by calling `/v1/models`.",
+        examples=[
+            "Systran/faster-distil-whisper-large-v3",
+            "bofenghuang/whisper-large-v2-cv11-french-ct2",
+        ],
+    ),
+]
 
 
 class TimestampGranularity(enum.StrEnum):
@@ -19,8 +31,42 @@ class TimestampGranularity(enum.StrEnum):
     WORD = "word"
 
 
-# https://github.com/openai/openai-openapi/blob/master/openapi.yaml#L10909
-DEFAULT_TIMESTAMP_GRANULARITIES: [TimestampGranularity] = [TimestampGranularity.SEGMENT]
+def _convert_timestamp_granularities(timestamp_granularities: str | List[TimestampGranularity]) -> List[
+    TimestampGranularity]:
+    if isinstance(timestamp_granularities, List):
+        return timestamp_granularities
+
+    timestamps = timestamp_granularities.split(",")
+    return [TimestampGranularity(t.strip()) for t in timestamps]
+
+
+TimestampGranularities = Annotated[
+    List[TimestampGranularity],
+    BeforeValidator(_convert_timestamp_granularities)
+]
+
+
+def _convert_temperature(temperature: Union[str, int, float, List[float]]) -> List[float]:
+    if isinstance(temperature, List):
+        return temperature
+    elif isinstance(temperature, (float, int)):
+        return [float(temperature)]
+
+    temperatures = temperature.split(",")
+
+    return [float(t.strip()) for t in temperatures]
+
+
+ValidatedTemperature = Annotated[
+    Union[float, List[float]],
+    BeforeValidator(_convert_temperature),
+]
+
+
+def _process_empty_response_format(response_format: Optional[str]) -> Optional[str]:
+    if response_format == '':
+        return DEFAULT_RESPONSE_FORMAT
+    return response_format
 
 
 class ResponseFormat(enum.StrEnum):
@@ -29,6 +75,23 @@ class ResponseFormat(enum.StrEnum):
     VERBOSE_JSON = "verbose_json"
     SRT = "srt"
     VTT = "vtt"
+
+
+ValidatedResponseFormat = Annotated[
+    ResponseFormat,
+    BeforeValidator(_process_empty_response_format)
+]
+
+
+class Task(enum.StrEnum):
+    TRANSCRIBE = "transcribe"
+    TRANSLATE = "translate"
+
+
+def _process_empty_language(language: Optional[str]) -> Optional[str]:
+    if language == '':
+        return DEFAULT_LANGUAGE
+    return language
 
 
 class Language(enum.StrEnum):
@@ -134,6 +197,13 @@ class Language(enum.StrEnum):
     ZH = "zh"
 
 
+# None needed to return None from Validator
+ValidatedLanguage = Annotated[
+    Language | None,
+    BeforeValidator(_process_empty_language)
+]
+
+
 class ModelObject(BaseModel):
     id: str
     """The model identifier, which can be referenced in the API endpoints."""
@@ -178,16 +248,26 @@ class ModelListResponse(BaseModel):
     object: Literal["list"] = "list"
 
 
-ModelName = Annotated[
-    str,
-    Field(
-        description="The ID of the model. You can get a list of available models by calling `/v1/models`.",
-        examples=[
-            "Systran/faster-distil-whisper-large-v3",
-            "bofenghuang/whisper-large-v2-cv11-french-ct2",
-        ],
-    ),
-]
+def hf_model_info_to_model_object(model: ModelInfo) -> ModelObject:
+    assert model.created_at is not None
+    assert model.card_data is not None
+    assert model.card_data.language is None or isinstance(
+        model.card_data.language, str | list
+    )
+    if model.card_data.language is None:
+        language = []
+    elif isinstance(model.card_data.language, str):
+        language = [model.card_data.language]
+    else:
+        language = model.card_data.language
+    transformed_model = ModelObject(
+        id=model.id,
+        created=int(model.created_at.timestamp()),
+        object_="model",
+        owned_by=model.id.split("/")[0],
+        language=language,
+    )
+    return transformed_model
 
 
 def segments_to_response(
@@ -304,11 +384,11 @@ def validate_timestamp_granularities(response_format, timestamp_granularities):
         )
 
     if (
-            TimestampGranularity.WORD not in timestamp_granularities
+            "word" not in timestamp_granularities
             and response_format == ResponseFormat.VERBOSE_JSON
     ):
         raise InvalidArgument(
-            f"timestamp_granularities must contain {TimestampGranularity.WORD} when response_format "
+            f"timestamp_granularities must contain 'word' when response_format "
             f"is set to {ResponseFormat.VERBOSE_JSON}"
         )
 
@@ -320,4 +400,12 @@ class BatchTranscriptionRequest(BaseModel):
     prompt: Optional[str]
     response_format: Optional[ResponseFormat]
     temperature: Optional[Union[float, List[float]]]
-    timestamp_granularities: Optional[List[TimestampGranularity]]
+    timestamp_granularities: Optional[TimestampGranularities]
+
+
+DEFAULT_RESPONSE_FORMAT = ResponseFormat.JSON
+DEFAULT_TEMPERATURE = 0.0
+DEFAULT_LANGUAGE = None
+DEFAULT_TRANSCRIPTION_MODEL = "large-v3"
+DEFAULT_PROMPT = None
+DEFAULT_TIMESTAMP_GRANULARITIES = [TimestampGranularity.SEGMENT]

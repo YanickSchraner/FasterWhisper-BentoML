@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator, List, Optional, Union
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator, List, Optional
 
 import bentoml
 import huggingface_hub
@@ -7,14 +7,14 @@ from bentoml.validators import ContentType
 from fastapi import FastAPI
 
 from api_models import (
-    Language,
     ModelListResponse,
     ModelObject,
     ResponseFormat,
-    DEFAULT_TIMESTAMP_GRANULARITIES, segments_to_response,
+    segments_to_response,
     segments_to_streaming_response,
     validate_timestamp_granularities, BatchTranscriptionRequest, ModelName, Task, TimestampGranularities,
-    hf_model_info_to_model_object, Temperature
+    hf_model_info_to_model_object, ValidatedTemperature, ValidatedResponseFormat, ValidatedLanguage,
+    DEFAULT_TIMESTAMP_GRANULARITIES
 )
 from config import WhisperConfig
 from core import Segment
@@ -53,22 +53,24 @@ class FasterWhisper:
             self,
             file: Annotated[Path, ContentType("audio/mpeg")],
             model: Optional[ModelName] = Field(
-                default="large-v3", description="Whisper model to load"
+                default="large-v3",
+                description="Whisper model to load"
             ),
-            language: Optional[Language] = Field(
+            language: Optional[ValidatedLanguage] = Field(
                 default=None,
                 description='The language spoken in the audio. It should be a language code such as "en" or "fr". If '
-                            'not set, the language will be detected in the first 30 seconds of audio.',
+                            'not set, the language will be detected in the first 30 seconds of audio.'
             ),
-            prompt: Optional[float] = Field(
+            prompt: Optional[str] = Field(
                 default=None,
                 description="Optional text string or iterable of token ids to provide as a prompt for the first window.",
             ),
-            response_format: Optional[ResponseFormat] = Field(
+            response_format: Optional[ValidatedResponseFormat] = Field(
                 default=ResponseFormat.JSON,
-                description=f"One of: {[format for format in ResponseFormat]}",
+                description="The format of the output, in one of these options: `json`, `text`, `srt`, `verbose_json`, "
+                            "or `vtt`.",
             ),
-            temperature: Optional[Temperature] = Field(
+            temperature: Optional[ValidatedTemperature] = Field(
                 default=0.0,
                 description="Temperature value, which can either be a single float or a list of floats.",
             ),
@@ -117,20 +119,20 @@ class FasterWhisper:
             model: Optional[ModelName] = Field(
                 default="large-v3", description="Whisper model to load"
             ),
-            language: Optional[Language] = Field(
+            language: Optional[ValidatedLanguage] = Field(
                 default=None,
                 description='The language spoken in the audio. It should be a language code such as "en" or "fr". If '
-                            'not set, the language will be detected in the first 30 seconds of audio.',
+                            'not set, the language will be detected in the first 30 seconds of audio.'
             ),
-            prompt: Optional[float] = Field(
+            prompt: Optional[str] = Field(
                 default=None,
                 description="Optional text string or iterable of token ids to provide as a prompt for the first window.",
             ),
-            response_format: Optional[ResponseFormat] = Field(
+            response_format: Optional[ValidatedResponseFormat] = Field(
                 default=ResponseFormat.JSON,
                 description=f"One of: {[format for format in ResponseFormat]}",
             ),
-            temperature: Optional[Temperature] = Field(
+            temperature: Optional[ValidatedTemperature] = Field(
                 default=0.0,
                 description="Temperature value, which can either be a single float or a list of floats.",
             ),
@@ -161,20 +163,20 @@ class FasterWhisper:
             model: Optional[ModelName] = Field(
                 default="large-v3", description="Whisper model to load"
             ),
-            language: Optional[Language] = Field(
+            language: Optional[ValidatedLanguage] = Field(
                 default=None,
                 description='The language spoken in the audio. It should be a language code such as "en" or "fr". If '
-                            'not set, the language will be detected in the first 30 seconds of audio.',
+                            'not set, the language will be detected in the first 30 seconds of audio.'
             ),
-            prompt: Optional[float] = Field(
+            prompt: Optional[str] = Field(
                 default=None,
                 description="Optional text string or iterable of token ids to provide as a prompt for the first window.",
             ),
-            response_format: Optional[ResponseFormat] = Field(
+            response_format: Optional[ValidatedResponseFormat] = Field(
                 default=ResponseFormat.JSON,
                 description=f"One of: {[format for format in ResponseFormat]}",
             ),
-            temperature: Optional[Temperature] = Field(
+            temperature: Optional[ValidatedTemperature] = Field(
                 default=0.0,
                 description="Temperature value, which can either be a single float or a list of floats.",
             ),
@@ -204,16 +206,16 @@ class FasterWhisper:
             model: Optional[ModelName] = Field(
                 default="large-v3", description="Whisper model to load"
             ),
-            prompt: Optional[float] = Field(
+            prompt: Optional[str] = Field(
                 default=None,
                 description="An optional text to guide the model's style or continue a previous audio segment. The "
                             "prompt should be in English.",
             ),
-            response_format: Optional[ResponseFormat] = Field(
+            response_format: Optional[ValidatedResponseFormat] = Field(
                 default=ResponseFormat.JSON,
                 description=f"One of: {[format for format in ResponseFormat]}",
             ),
-            temperature: Optional[Temperature] = Field(
+            temperature: Optional[ValidatedTemperature] = Field(
                 default=0.0,
                 description="Temperature value, which can either be a single float or a list of floats.",
             )
@@ -236,12 +238,8 @@ class FasterWhisper:
         return ModelListResponse(data=transformed_models)
 
     @fastapi.get("/models/{model_name:path}")
-    # NOTE: `examples` doesn't work https://github.com/tiangolo/fastapi/discussions/10537
     def get_model(self,
-                  model_name: Annotated[
-                      str, Path(example="Systran/faster-distil-whisper-large-v3")
-                  ],
-                  ) -> ModelObject:
+                  model_name=Annotated[str, Path(example="Systran/faster-distil-whisper-large-v3")]) -> ModelObject:
         models = huggingface_hub.list_models(
             model_name=model_name,
             library="ctranslate2",
@@ -301,4 +299,3 @@ class FasterWhisper:
             )
         segments = Segment.from_faster_whisper_segments(segments)
         return segments, transcription_info
-

@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Annotated, List, Union, Optional
 
-from _bentoml_sdk.validators import ContentType
 from bentoml.exceptions import InvalidArgument
 from huggingface_hub import ModelInfo
 from pydantic import Field, BeforeValidator, BaseModel
@@ -130,15 +129,3 @@ class BatchTranscriptionRequest(BaseModel):
     response_format: Optional[ResponseFormat] = faster_whisper_config.default_response_format
     temperature: Optional[Union[float, List[float]]] = faster_whisper_config.default_temperature
     timestamp_granularities: Optional[TimestampGranularities] = faster_whisper_config.default_timestamp_granularities
-#
-# class BatchTranscriptionRequest(BaseModel):
-#     file: Annotated[Path, ContentType("audio/mpeg")]
-#     model: Optional[ModelName] = Field(default=faster_whisper_config.default_model_name),
-#     language: Optional[ValidatedLanguage] = Field(default=faster_whisper_config.default_language),
-#     prompt: Optional[str] = Field(faster_whisper_config.default_prompt),
-#     response_format: Optional[ValidatedResponseFormat] = Field(default=faster_whisper_config.default_response_format),
-#     temperature: Optional[ValidatedTemperature] = Field(default=faster_whisper_config.default_temperature),
-#     timestamp_granularities: Optional[TimestampGranularities] = Field(
-#         default=faster_whisper_config.default_timestamp_granularities,
-#         alias="timestamp_granularities[]"
-#     )

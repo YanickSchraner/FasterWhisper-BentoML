@@ -1,10 +1,12 @@
 import logging
+import os
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, List, Optional
 
 import bentoml
 import huggingface_hub
 from bentoml.validators import ContentType
-from fastapi import FastAPI
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
 
 from api_models.enums import ResponseFormat, Task
 from api_models.input_models import ModelName, ValidatedLanguage, ValidatedResponseFormat, ValidatedTemperature, \
@@ -22,21 +24,24 @@ if TYPE_CHECKING:
 from pathlib import Path
 from pydantic import Field
 
-from bentoml.exceptions import NotFound
-
 logger = logging.getLogger("bentoml")
 
 fastapi = FastAPI()
 
 configure_logging()
 
+load_dotenv()
+
+
+TIMEOUT = int(os.getenv("TIMEOUT", 3000))
+MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", 4))
+
 
 @bentoml.service(
-    traffic={"timeout": 3000},
-    resources={
-        "gpu": 1,
-        "memory": "8Gi",
-    },
+    traffic={
+        "timeout": TIMEOUT,
+        "max_concurrency": MAX_CONCURRENCY,
+    }
 )
 @bentoml.mount_asgi_app(fastapi, path="/v1")
 class FasterWhisper:
@@ -248,15 +253,16 @@ class FasterWhisper:
         models = list(models)
         models.sort(key=lambda model: model.downloads, reverse=True)  # type: ignore  # noqa: PGH003
         if len(models) == 0:
-            raise NotFound(message="No models found.")
+            raise HTTPException(status_code=404, detail="No models found.")
         exact_match: ModelInfo | None = None
         for model in models:
             if model.id == model_name:
                 exact_match = model
                 break
         if exact_match is None:
-            raise NotFound(
-                message=f"Model doesn't exists. Possible matches: {', '.join([model.id for model in models])}",
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model doesn't exists. Possible matches: {', '.join([model.id for model in models])}",
             )
         return hf_model_info_to_model_object(exact_match)
 

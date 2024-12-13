@@ -9,27 +9,26 @@ import bentoml
 class TestIntegration:
 
     @pytest.mark.skip(reason="Only for development purposes. This test only succeeds if the bentoml service is "
-                             "running at port 8002")
+                             "running at port 8003. Remove this comment for development.")
     def test_transcribe_endpoint(self):
         # given
-        client = bentoml.SyncHTTPClient("http://localhost:3000")
-        file_path = str(Path("tests/assets/example_audio.mp3"))
+        client = bentoml.SyncHTTPClient("http://localhost:8003")
+        file = Path(__file__).resolve().parent.parent / "assets" / "example_audio.mp3"
 
         # when
         result = client.transcribe(
-            file=file_path
+            file=file
         )
 
         # then
         assert "I am just a sample audio text." in result
 
-
     @pytest.mark.skip(reason="Only for development purposes. This test only succeeds if the bentoml service is "
-                             "running at port 8002")
+                             "running at port 8003. Remove this comment for development.")
     def test_transcribe_task_endpoint(self):
         # given
         file = Path(__file__).resolve().parent.parent / "assets" / "example_audio.mp3"
-        client = bentoml.SyncHTTPClient('http://localhost:8002')
+        client = bentoml.SyncHTTPClient('http://localhost:8003')
 
         # when
         task = client.task_transcribe.submit(file=file)
@@ -44,10 +43,10 @@ class TestIntegration:
         assert "I am just a sample audio text." in result
 
     @pytest.mark.skip(reason="Only for development purposes. This test only succeeds if the bentoml service is "
-                             "running at port 8002")
+                             "running at port 8003. Remove this comment for development.")
     def test_transcribe_streaming_endpoint(self):
         # given
-        client = bentoml.SyncHTTPClient("http://localhost:8002")
+        client = bentoml.SyncHTTPClient("http://localhost:8003")
         file = Path(__file__).resolve().parent.parent / "assets" / "example_audio.mp3"
         data_chunks = []
 

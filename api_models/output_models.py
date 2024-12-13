@@ -6,7 +6,7 @@ from faster_whisper.transcribe import TranscriptionInfo
 from pydantic import BaseModel
 from pydantic import ConfigDict, Field
 
-from api_models.enums import ResponseFormat, Task
+from api_models.enums import ResponseFormat
 from core import Segment, segments_to_text, segments_to_vtt, segments_to_srt, Word
 
 logger = logging.getLogger(__name__)

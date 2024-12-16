@@ -9,7 +9,7 @@ import bentoml
 class TestIntegration:
 
     @pytest.mark.skip(reason="Only for development purposes. This test only succeeds if the bentoml service is "
-                             "running at port 8003. Remove this comment for development.")
+                          "running at port 8003. Remove this comment for development.")
     def test_transcribe_endpoint(self):
         # given
         client = bentoml.SyncHTTPClient("http://localhost:8003")
@@ -18,6 +18,25 @@ class TestIntegration:
         # when
         result = client.transcribe(
             file=file
+        )
+
+        # then
+        assert "I am just a sample audio text." in result
+
+
+    @pytest.mark.skip(reason="Only for development purposes. This test only succeeds if the bentoml service is "
+                             "running at port 8003. Remove this comment for development.")
+    def test_transcribe_batch_endpoint(self):
+        # given
+        client = bentoml.SyncHTTPClient("http://localhost:8003")
+        file = Path(__file__).resolve().parent.parent / "assets" / "example_audio.mp3"
+        request = {
+            'file': '/Users/adr/Documents/repos/FasterWhisper-BentoML/tests/assets/example_audio.mp3'
+        }
+
+        # when
+        result = client.batch_transcribe(
+            requests=[request]
         )
 
         # then

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 from pathlib import Path
 from pydantic import Field
 
-logger = logging.getLogger("bentoml")
+logger = logging.getLogger(__name__)
 
 fastapi = FastAPI()
 
@@ -72,7 +72,9 @@ class FasterWhisper:
             ),
             temperature: Optional[ValidatedTemperature] = Field(
                 default=faster_whisper_config.default_temperature,
-                description="Temperature value, which can either be a single float or a list of floats.",
+                description="Temperature value, which can either be a single float or a list of floats. "
+                            f"Valid Range: Between {faster_whisper_config.min_temperature} and "
+                            f"{faster_whisper_config.max_temperature}",
             ),
             timestamp_granularities: Optional[TimestampGranularities] = Field(
                 default=faster_whisper_config.default_timestamp_granularities,
@@ -136,7 +138,9 @@ class FasterWhisper:
             ),
             temperature: Optional[ValidatedTemperature] = Field(
                 default=faster_whisper_config.default_temperature,
-                description="Temperature value, which can either be a single float or a list of floats.",
+                description="Temperature value, which can either be a single float or a list of floats. "
+                            f"Valid Range: Between {faster_whisper_config.min_temperature} and "
+                            f"{faster_whisper_config.max_temperature}",
             ),
             timestamp_granularities: Optional[TimestampGranularities] = Field(
                 default=faster_whisper_config.default_timestamp_granularities,
@@ -182,7 +186,9 @@ class FasterWhisper:
             ),
             temperature: Optional[ValidatedTemperature] = Field(
                 default=faster_whisper_config.default_temperature,
-                description="Temperature value, which can either be a single float or a list of floats.",
+                description="Temperature value, which can either be a single float or a list of floats. "
+                            f"Valid Range: Between {faster_whisper_config.min_temperature} and "
+                            f"{faster_whisper_config.max_temperature}",
             ),
             timestamp_granularities: Optional[TimestampGranularities] = Field(
                 default=faster_whisper_config.default_timestamp_granularities,
@@ -221,7 +227,9 @@ class FasterWhisper:
             ),
             temperature: Optional[ValidatedTemperature] = Field(
                 default=faster_whisper_config.default_temperature,
-                description="Temperature value, which can either be a single float or a list of floats.",
+                description="Temperature value, which can either be a single float or a list of floats. "
+                            f"Valid Range: Between {faster_whisper_config.min_temperature} and "
+                            f"{faster_whisper_config.max_temperature}",
             )
     ) -> (
             Annotated[str, bentoml.validators.ContentType("text/plain")]

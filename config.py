@@ -49,5 +49,8 @@ class FasterWhisperConfig(BaseModel):
     default_temperature: float = 0.0
     default_timestamp_granularities: List[TimestampGranularity] = [TimestampGranularity.SEGMENT]
 
+    min_temperature: float = 0.0
+    max_temperature: float = 2.0
+
 
 faster_whisper_config = FasterWhisperConfig()

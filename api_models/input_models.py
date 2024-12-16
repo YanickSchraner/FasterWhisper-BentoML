@@ -3,7 +3,7 @@ from typing import Annotated, List, Union, Optional
 
 from bentoml.exceptions import InvalidArgument
 from huggingface_hub import ModelInfo
-from pydantic import Field, BeforeValidator, BaseModel
+from pydantic import Field, BeforeValidator, BaseModel, confloat
 
 from api_models.enums import TimestampGranularity, ResponseFormat, Language
 from api_models.output_models import ModelObject, logger
@@ -21,7 +21,8 @@ ModelName = Annotated[
 ]
 
 
-def _convert_timestamp_granularities(timestamp_granularities: str | List[TimestampGranularity]) -> List[TimestampGranularity]:
+def _convert_timestamp_granularities(timestamp_granularities: str | List[TimestampGranularity]) -> List[
+    TimestampGranularity]:
     if isinstance(timestamp_granularities, List):
         return timestamp_granularities
 
@@ -46,8 +47,10 @@ def _convert_temperature(temperature: Union[str, int, float, List[float]]) -> Li
     return [float(t.strip()) for t in temperatures]
 
 
+BoundedTemperature = confloat(ge=faster_whisper_config.min_temperature, le=faster_whisper_config.max_temperature)
+
 ValidatedTemperature = Annotated[
-    Union[float, List[float]],
+    Union[BoundedTemperature, List[BoundedTemperature]],
     BeforeValidator(_convert_temperature),
 ]
 

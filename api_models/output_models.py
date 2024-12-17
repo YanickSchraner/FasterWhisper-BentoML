@@ -1,128 +1,15 @@
-import enum
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Generator, Iterable, Literal
-
-from core import Segment, Transcription, Word, segments_to_srt, segments_to_text, segments_to_vtt
+import logging
+from typing import Iterable, Generator
+from typing import Literal
 
 from faster_whisper.transcribe import TranscriptionInfo
+from pydantic import BaseModel
+from pydantic import ConfigDict, Field
 
-class ResponseFormat(enum.StrEnum):
-    TEXT = "text"
-    JSON = "json"
-    VERBOSE_JSON = "verbose_json"
-    SRT = "srt"
-    VTT = "vtt"
+from api_models.enums import ResponseFormat
+from core import Segment, segments_to_text, segments_to_vtt, segments_to_srt, Word
 
-class Language(enum.StrEnum):
-    AF = "af"
-    AM = "am"
-    AR = "ar"
-    AS = "as"
-    AZ = "az"
-    BA = "ba"
-    BE = "be"
-    BG = "bg"
-    BN = "bn"
-    BO = "bo"
-    BR = "br"
-    BS = "bs"
-    CA = "ca"
-    CS = "cs"
-    CY = "cy"
-    DA = "da"
-    DE = "de"
-    EL = "el"
-    EN = "en"
-    ES = "es"
-    ET = "et"
-    EU = "eu"
-    FA = "fa"
-    FI = "fi"
-    FO = "fo"
-    FR = "fr"
-    GL = "gl"
-    GU = "gu"
-    HA = "ha"
-    HAW = "haw"
-    HE = "he"
-    HI = "hi"
-    HR = "hr"
-    HT = "ht"
-    HU = "hu"
-    HY = "hy"
-    ID = "id"
-    IS = "is"
-    IT = "it"
-    JA = "ja"
-    JW = "jw"
-    KA = "ka"
-    KK = "kk"
-    KM = "km"
-    KN = "kn"
-    KO = "ko"
-    LA = "la"
-    LB = "lb"
-    LN = "ln"
-    LO = "lo"
-    LT = "lt"
-    LV = "lv"
-    MG = "mg"
-    MI = "mi"
-    MK = "mk"
-    ML = "ml"
-    MN = "mn"
-    MR = "mr"
-    MS = "ms"
-    MT = "mt"
-    MY = "my"
-    NE = "ne"
-    NL = "nl"
-    NN = "nn"
-    NO = "no"
-    OC = "oc"
-    PA = "pa"
-    PL = "pl"
-    PS = "ps"
-    PT = "pt"
-    RO = "ro"
-    RU = "ru"
-    SA = "sa"
-    SD = "sd"
-    SI = "si"
-    SK = "sk"
-    SL = "sl"
-    SN = "sn"
-    SO = "so"
-    SQ = "sq"
-    SR = "sr"
-    SU = "su"
-    SV = "sv"
-    SW = "sw"
-    TA = "ta"
-    TE = "te"
-    TG = "tg"
-    TH = "th"
-    TK = "tk"
-    TL = "tl"
-    TR = "tr"
-    TT = "tt"
-    UK = "uk"
-    UR = "ur"
-    UZ = "uz"
-    VI = "vi"
-    YI = "yi"
-    YO = "yo"
-    YUE = "yue"
-    ZH = "zh"
-
-
-class Task(enum.StrEnum):
-    TRANSCRIBE = "transcribe"
-    TRANSLATE = "translate"
-
-
-
-
+logger = logging.getLogger(__name__)
 
 
 class ModelObject(BaseModel):
@@ -164,16 +51,15 @@ class ModelObject(BaseModel):
     )
 
 
-
-
 class ModelListResponse(BaseModel):
     data: list[ModelObject]
     object: Literal["list"] = "list"
 
+
 def segments_to_response(
-    segments: Iterable[Segment],
-    transcription_info: TranscriptionInfo,
-    response_format: ResponseFormat,
+        segments: Iterable[Segment],
+        transcription_info: TranscriptionInfo,
+        response_format: ResponseFormat,
 ):
     segments = list(segments)
     if response_format == ResponseFormat.TEXT:  # noqa: RET503
@@ -187,13 +73,15 @@ def segments_to_response(
     elif response_format == ResponseFormat.SRT:
         return "".join(segments_to_srt(segment, i) for i, segment in enumerate(segments))
 
+
 def format_as_sse(data: str) -> str:
     return f"data: {data}\n\n"
 
+
 def segments_to_streaming_response(
-    segments: Iterable[Segment],
-    transcription_info: TranscriptionInfo,
-    response_format: ResponseFormat,
+        segments: Iterable[Segment],
+        transcription_info: TranscriptionInfo,
+        response_format: ResponseFormat,
 ):
     def segment_responses() -> Generator[str, None, None]:
         for i, segment in enumerate(segments):
@@ -207,6 +95,8 @@ def segments_to_streaming_response(
                 data = segments_to_vtt(segment, i)
             elif response_format == ResponseFormat.SRT:
                 data = segments_to_srt(segment, i)
+            else:
+                raise ValueError(f"Unknown response format: {response_format}")
             yield format_as_sse(data)
 
     return segment_responses()
@@ -219,10 +109,6 @@ class TranscriptionJsonResponse(BaseModel):
     @classmethod
     def from_segments(cls, segments: list[Segment]):
         return cls(text=segments_to_text(segments))
-
-    @classmethod
-    def from_transcription(cls, transcription: Transcription):
-        return cls(text=transcription.text)
 
 
 # https://platform.openai.com/docs/api-reference/audio/verbose-json-object
@@ -245,23 +131,11 @@ class TranscriptionVerboseJsonResponse(BaseModel):
         )
 
     @classmethod
-    def from_segments(
-        cls, segments: list[Segment], transcription_info: TranscriptionInfo
-    ):
+    def from_segments(cls, segments: list[Segment], transcription_info: TranscriptionInfo):
         return cls(
             language=transcription_info.language,
             duration=transcription_info.duration,
             text=segments_to_text(segments),
-            segments=segments,
             words=Word.from_segments(segments),
-        )
-
-    @classmethod
-    def from_transcription(cls, transcription: Transcription):
-        return cls(
-            language="english",  # FIX: hardcoded
-            duration=transcription.duration,
-            text=transcription.text,
-            words=transcription.words,
-            segments=[],  # FIX: hardcoded
+            segments=segments,
         )

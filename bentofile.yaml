@@ -1,11 +1,17 @@
-service: "service.py:FasterWhisper"
+service: "service:FasterWhisper"
 labels:
   owner: yanick-schraner
   project: gallery
+  stage: not-ready
 include:
   - "*.py"
+  - '.env'
+exclude:
+  - "tests/"
+  - "launch.py"
 python:
-  requirements_txt: requirements.txt
+  requirements_txt: './requirements.txt'
+  lock_packages: false
 docker:
   python_version: "3.12"
   system_packages:

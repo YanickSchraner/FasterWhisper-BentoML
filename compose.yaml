@@ -1,13 +1,18 @@
 services:
   faster_whisper:
-    image: quay.io/ktbs/fd-itbs-dms/faster_whisper:latest
+    tags:
+      - "quay.io/ktbs/fd-itbs-dms/faster-whisper:latest"
+      - "quay.io/ktbs/fd-itbs-dms/faster-whisper:1.0.0"
     restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
     container_name: faster_whisper
     ports:
-      - '50001:50001'
+      - '9001:50001'
     environment:
       - http_proxy
       - HTTP_PROXY
@@ -24,6 +29,6 @@ services:
             - driver: nvidia
               device_ids: [ '1' ]
               capabilities: [ gpu ]
-
+              
 volumes:
   hugging_face_cache:

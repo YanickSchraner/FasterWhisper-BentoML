@@ -9,11 +9,3 @@ include:
 exclude:
   - "tests/"
   - "launch.py"
-python:
-  requirements_txt: './requirements.txt'
-  lock_packages: false
-docker:
-  python_version: "3.12"
-  system_packages:
-    - ffmpeg
-    - git

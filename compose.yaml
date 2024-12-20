@@ -1,8 +1,5 @@
 services:
   faster_whisper:
-    tags:
-      - "quay.io/ktbs/fd-itbs-dms/faster-whisper:latest"
-      - "quay.io/ktbs/fd-itbs-dms/faster-whisper:1.0.0"
     restart: unless-stopped
     build:
       context: .
@@ -10,7 +7,9 @@ services:
       platforms:
         - linux/amd64
         - linux/arm64
-    container_name: faster_whisper
+      tags:
+      - "quay.io/ktbs/fd-itbs-dms/faster-whisper:latest"
+      - "quay.io/ktbs/fd-itbs-dms/faster-whisper:1.0.0"
     ports:
       - '9001:50001'
     environment:
@@ -29,6 +28,6 @@ services:
             - driver: nvidia
               device_ids: [ '1' ]
               capabilities: [ gpu ]
-              
+
 volumes:
   hugging_face_cache:

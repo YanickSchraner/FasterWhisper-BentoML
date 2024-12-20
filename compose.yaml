@@ -29,6 +29,6 @@ services:
             - driver: nvidia
               device_ids: [ '1' ]
               capabilities: [ gpu ]
-              
+
 volumes:
   hugging_face_cache:
